@@ -12,7 +12,7 @@ export default function HomePage() {
           priority
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-[#f4ece4]/60" />
+        <div className="absolute inset-0 bg-[#f4ece4]/20" />
       </div>
 
       {/* 固定ナビ */}
@@ -24,7 +24,7 @@ export default function HomePage() {
       "
       >
         <div className="max-w-5xl mx-auto flex justify-between items-center px-6 py-3">
-          <div className="text-xl font-bold tracking-wide text-[#6b3d33]">
+          <div className="text-xl md:text-2xl font-bold text-[#6b3d33] font-['Lovelo'] tracking-[0.2em]">
             MARIF
           </div>
 
@@ -51,7 +51,7 @@ export default function HomePage() {
           ご祝儀のカタチを変える、新世代のご祝儀プラットフォーム
         </p>
 
-        <h1 className="text-4xl md:text-6xl font-bold leading-relaxed text-[#6b3d33] mb-6">
+        <h1 className="text-4xl md:text-6xl font-bold leading-relaxed text-[#6b3d33] mb-6 font-['Lovelo'] tracking-[0.12em]">
           結婚式がなくても、
           <br />
           祝福は届けられる。
@@ -80,66 +80,90 @@ export default function HomePage() {
         <h2 className="text-2xl md:text-3xl font-bold text-[#6b3d33] text-center mb-10 leading-relaxed">
           どんなかたちの結婚でも、どんな距離にいても、
           <br />
-          必要な祝福を、必要な人へ。
+           必要な祝福を、必要な人へ。
           <br />
           Marifがスマートにつなぎます。
         </h2>
+<div className="bg-[#cfcac5] rounded-2xl p-6 md:p-10 shadow-sm max-w-4xl mx-auto">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center text-[#6b3d33]">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-[#6b3d33]">
-          <p className="text-sm md:text-base leading-relaxed">
-            新生活を始めるための資金は、
-            多くの新婚夫婦が感じる課題です。
-            結婚式を挙げない場合、引っ越しや家具・家電の準備まで
-            すべて自己負担になってしまうことも少なくありません。
-          </p>
+    {/* 左側：説明文（文字サイズUP） */}
+    <p className="text-xl md:text-2xl font-bold leading-relaxed text-left md:mt-6">
+      新生活を始めるための資金は、
+      <br />
+      多くの新婚夫婦が感じる課題です。
+    </p>
 
-          <ul className="text-sm md:text-base leading-relaxed space-y-2">
-            <li>・引っ越し … 40万円以上</li>
-            <li>・家具の買い替え … 10万円以上</li>
-            <li>・家電の買い替え … 20万円以上</li>
-            <li>・結婚式なしではご祝儀なし → すべて自己負担</li>
-          </ul>
-        </div>
+    {/* 右側：白いBOXのリスト（行間を狭く＝space-y-2） */}
+    <div className="bg-white rounded-xl p-6 shadow-sm">
+      <ul className="text-base md:text-lg leading-relaxed space-y-1 font-medium text-left">
+        <li>・引っ越し　・・・　40万円以上</li>
+        <li>・家具の買い替え　・・・　10万円以上</li>
+        <li>・家電の買い替え　・・・　20万円以上</li>
+        <li>・結婚式なしではご祝儀なし</li>
+        <li className="text-center pt-1">
+          <b className="text-[#6b3d33] text-lg">➡ すべて自己負担</b>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
       </section>
 
       {/* 2. とはいえ…＋Marifなら… セクション */}
       <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-10">
-          <p className="text-center text-sm md:text-base text-[#8b5a4a] leading-relaxed mb-8">
-            とはいえ、式を挙げない場合、
-            ご祝儀として現金や物品を直接お願いするのは、
+        <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-12">
+          {/* 上の説明文：行間を広めにして中央寄せ */}
+          <p className="text-center text-sm md:text-base text-[#8b5a4a] leading-relaxed font-semibold mb-10">
+            とはいえ、式を挙げない場合、<br />
+            ご祝儀として現金や物品を直接お願いするのは、<br />
             どうしても気が引けてしまうもの。
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1.1fr,1fr] gap-8 items-center">
-            {/* 左：写真っぽいボックス（あとで画像に差し替えOK） */}
-            <div className="w-full aspect-[4/3] bg-[#d9c7bc] rounded-2xl overflow-hidden flex items-center justify-center text-xs text-[#6b3d33]/80">
-              {/* ここを <Image> に差し替えてもOK */}
-              写真イメージ（あとで差し替え）
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center">
+            {/* 左：写真（比率を少し縦長＆左寄せっぽく） */}
+            <div className="w-full flex justify-center md:justify-start">
+              <div className="w-full max-w-md rounded-3xl overflow-hidden shadow-lg">
+                <Image
+                  src="/wedding-couple.jpg"
+                  alt="カップル写真"
+                  width={800}
+                  height={600}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
 
-            {/* 右：テキスト */}
-            <div className="space-y-4 text-sm md:text-base leading-relaxed">
-              <p className="font-bold text-lg md:text-xl">
-                Marifなら、
-                <br />
-                結婚報告と共に
-                <br />
-                ほしいものを
-                <br />
+            {/* 右：テキスト（参考画像に寄せてセンター寄せ気味のブロック） */}
+            <div className="text-center md:text-left text-[#6b3d33]">
+              <h2 className="text-2xl md:text-3xl font-bold leading-relaxed mb-6">
+                Marifなら、<br />
+                結婚報告と共に<br />
+                ほしいものを<br />
                 気軽く共有するだけ。
-              </p>
-              <p>
-                祝福したい人は、リストの中から
+              </h2>
+
+              <p className="text-sm md:text-base leading-relaxed font-medium">
+                祝福したい人は、リストの中から<br />
                 自由な金額でサポートができます。
-                現金を「ちょうだい」とお願いするのではなく、
-                「新生活のこれを一緒に準備してほしい」と
-                具体的にイメージを共有できるのがポイントです。
+              </p>
+
+              <p className="mt-2 text-xs md:text-sm text-[#8b5a4a] leading-relaxed">
+                現金を「ちょうだい」とお願いするのではなく、<br />
+                「新生活のこれを一緒に準備してほしい」と<br />
+                イメージを一緒に共有できるのがポイントです。
+              </p>
+
+              <p className="mt-4 text-center md:text-left tracking-[0.4em] text-[#6b3d33] text-xs md:text-sm">
+                ーーーーーー
               </p>
             </div>
           </div>
         </div>
       </section>
+
 
       {/* 3. サービス内容のご紹介 */}
       <section className="max-w-5xl mx-auto px-6 pb-20">
