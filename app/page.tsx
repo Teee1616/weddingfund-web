@@ -116,7 +116,7 @@ export default function HomePage() {
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-12">
           {/* 上の説明文：行間を広めにして中央寄せ */}
-          <p className="text-center text-sm md:text-base text-[#8b5a4a] leading-relaxed font-semibold mb-10">
+          <p className="text-center text-lg md:text-xl text-[#8b5a4a] leading-relaxed mb-8 font-medium">
             とはいえ、式を挙げない場合、<br />
             ご祝儀として現金や物品を直接お願いするのは、<br />
             どうしても気が引けてしまうもの。
@@ -145,99 +145,169 @@ export default function HomePage() {
                 気軽く共有するだけ。
               </h2>
 
-              <p className="text-sm md:text-base leading-relaxed font-medium">
-                祝福したい人は、リストの中から<br />
-                自由な金額でサポートができます。
-              </p>
+ <p className="space-y-1 leading-relaxed">
+  祝福したい人は、リストの中から
+  <br />
 
-              <p className="mt-2 text-xs md:text-sm text-[#8b5a4a] leading-relaxed">
-                現金を「ちょうだい」とお願いするのではなく、<br />
-                「新生活のこれを一緒に準備してほしい」と<br />
-                イメージを一緒に共有できるのがポイントです。
-              </p>
+  {/* 強調したい部分「自由な金額」 */}
+  <span className="inline-block relative font-semibold">
+    自由な金額
+    {/* アンダーライン */}
+    <span className="block w-full h-[2px] bg-[#6b3d33] mt-1"></span>
+  </span>
 
-              <p className="mt-4 text-center md:text-left tracking-[0.4em] text-[#6b3d33] text-xs md:text-sm">
-                ーーーーーー
-              </p>
+  {/* 通常フォントに戻す部分 */}
+  <span>でサポートができます。</span>
+
+  <br />
+  現金を「ちょうだい」とお願いするのではなく、
+  <br />
+  「新生活のこれを一緒に準備してほしい」と
+  <br />
+  具体的にイメージを共有できるのがポイントです。
+</p>
             </div>
           </div>
         </div>
       </section>
 
 
-      {/* 3. サービス内容のご紹介 */}
-      <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-10 space-y-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">
-            サービス内容のご紹介
-          </h2>
+{/* 3. サービス内容のご紹介 */}
+<section className="max-w-5xl mx-auto px-6 pb-20">
+  <div className="bg-[#f3ede7] rounded-3xl px-4 md:px-6 py-10">
+    <h2 className="text-2xl md:text-3xl font-bold text-center mb-6">
+      サービス内容のご紹介
+    </h2>
 
-          {/* 1. ご祝儀ページの作成 */}
-          <div className="bg-white/90 rounded-2xl px-5 md:px-8 py-7 space-y-4">
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#c79a7f] text-white text-sm font-semibold mb-2">
-              1．ご祝儀ページの作成
-            </div>
-
-            <div className="space-y-4 text-sm md:text-base leading-relaxed">
-              <div>
-                <p className="font-semibold mb-1">① 簡易結婚報告ページ</p>
-                <p>
-                  結婚日時・新郎新婦のご紹介・二人のストーリーやプチ写真集など、
-                  結婚式を挙げなくても結婚報告ができる機能をぎゅっと集約。
-                  挨拶文と1行の夫婦紹介を書くところから、自由にカスタマイズできます。
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold mb-1">② ウィッシュリストページ</p>
-                <p>
-                  新生活に必要な「もの」を選び、リスト化。
-                  家電や家具、旅行費用など、ECサイトのURLをコピペして登録するだけでOK。
-                  ゲストはそのリストを見ながら、応援したいアイテムに支援できます。
-                </p>
-              </div>
-            </div>
+    {/* 1．ご祝儀ページの作成 */}
+    <div className="relative mt-6 mb-8">
+      <div className="bg-white rounded-[20px] shadow-lg shadow-black/10 border border-[#ead9cc] px-5 md:px-8 py-7">
+        <div className="space-y-4 text-sm md:text-base leading-relaxed">
+          <div>
+            {/* ★ タイトルを大きく＋太字 */}
+            <p className="font-bold mb-1 text-lg md:text-xl">
+              ① 簡易結婚報告ページ
+            </p>
+            {/* ★ この本文を太字に */}
+            <p className="font-semibold">
+              　結婚日時・新郎新婦のご紹介・二人のストーリーやプチ写真集など、
+              <br />
+              　結婚式を挙げなくても結婚報告ができる機能をぎゅっと集約。
+              <br />
+              　挨拶文&1行の夫婦紹介を書くだけでもOK!
+            </p>
+            <p className="text-xs md:text-sm mt-1">
+              　※ストーリーや写真集などは任意で設定可能
+            </p>
           </div>
 
-          {/* 2〜4の流れ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-6 space-y-3 text-sm md:text-base leading-relaxed">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#c79a7f] text-white text-sm font-semibold">
-                2．共有リンクの発行・共有
-              </div>
-              <p>
-                ワンクリックで「ご祝儀ページ」のURLを発行。
-                LINE / Instagram / X など、SNSやメッセージアプリでそのままシェアできます。
-              </p>
-            </div>
-
-            <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-6 space-y-3 text-sm md:text-base leading-relaxed">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#c79a7f] text-white text-sm font-semibold">
-                3．支援状況の確認
-              </div>
-              <p>
-                今の支援状況をリアルタイムで確認。
-                「今いくらくらい集まっているか」「どのアイテムに誰が支援してくれたか」を
-                ダッシュボードで一覧できます。
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white/90 rounded-2xl px-5 md:px-8 py-6 space-y-3 text-sm md:text-base leading-relaxed">
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#c79a7f] text-white text-sm font-semibold">
-              4．ギフトの受け取り
-            </div>
-            <p>
-              ご祝儀ページをクローズしたあとは、ご自宅へギフトを準備。
-              金額が達成したアイテムはそのまま購入、
-              足りない分はふたりで少し足して買う、といった柔軟な受け取りができます。
+          <div>
+            {/* ★ タイトルを大きく＋太字 */}
+            <p className="font-bold mb-1 text-lg md:text-xl">
+              ② ウィッシュリストページ
+            </p>
+            {/* ★ この本文を太字に */}
+            <p className="font-semibold">
+              　新生活に必要な「もの」を選び、リスト化する
+              <br />
+              　必要なものをECサイトから選んで、そのURLをコピー＆ペーストするだけでOK！
             </p>
           </div>
         </div>
-      </section>
+      </div>
+
+      <div className="absolute -top-5 left-6 inline-flex items-center px-5 py-2 rounded-full bg-[#c7a890] text-white text-sm md:text-base font-bold shadow">
+  1．ご祝儀ページの作成
+</div>
+
+    </div>
+
+    {/* 2・3 のボックス */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      {/* 2．共有リンクの発行・共有 */}
+      <div className="relative">
+        <div className="bg-white rounded-[20px] shadow-lg shadow-black/10 border border-[#ead9cc] px-5 md:px-7 py-7 text-sm md:text-base leading-relaxed">
+          {/* ★ この本文を太字に */}
+  <p className="font-semibold">
+  ワンクリックで「ご祝儀ページ」のURLを発行
+  <br />
+  共有リンクをSNSでシェアする
+  <br />
+  </p>
+  <p className="text-xs md:text-sm mt-1 mb-1 block">
+    LINE/Instagram/X など、SNSですぐ共有できる！
+  </p>
+
+
+        </div>
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 
+  inline-flex items-center justify-center 
+  px-5 py-2 rounded-full bg-[#c7a890] 
+  text-white text-sm md:text-base font-bold shadow
+  w-[270px]"
+>
+  2．共有リンクの発行・共有
+</div>
+
+      </div>
+
+      {/* 3．支援状況の確認 */}
+      <div className="relative">
+        <div className="bg-white rounded-[20px] shadow-lg shadow-black/10 border border-[#ead9cc] px-5 md:px-7 py-7 text-sm md:text-base leading-relaxed">
+          {/* ★ この本文を太字に */}
+          <p className="font-semibold">
+            今の支援状況をリアルタイムで確認
+            <br />
+            ・今いくらくらい集まっているか
+            <br />
+            ・どのアイテムに誰がサポートしてくれたのか
+          </p>
+        </div>
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 inline-flex items-center px-5 py-2 rounded-full bg-[#c7a890] text-white text-sm md:text-base font-bold shadow">
+  3．支援状況の確認
+</div>
+      </div>
+    </div>
+
+{/* 4．ギフトの受け取り */}
+<div className="relative">
+  <div
+    className="
+      bg-white
+      rounded-[28px]
+      shadow-xl shadow-black/10
+      border border-[#ead9cc]
+      px-8 md:px-12
+      py-12
+      text-sm md:text-base
+      leading-relaxed
+      mx-auto
+    "
+  >
+    <p className="font-semibold text-center">
+      <span className="text-xl md:text-2xl mb-2 block">
+        ご祝儀ページを閉じた後、ご自宅へギフトの発送
+      </span>
+
+      金額未達成のものに関しては、現金振り込みまたは新婚夫婦側で
+      <br className="leading-[0.6]" />
+      金額を足して購入することができる
+    </p>
+  </div>
+
+  <div className="absolute -top-5 left-1/2 -translate-x-1/2 inline-flex items-center px-5 py-2 rounded-full bg-[#c7a890] text-white text-sm md:text-base font-bold shadow">
+  4．ギフトの受け取り
+</div>
+</div>
+
+
+
+  </div>
+</section>
 
       {/* 4. Marifの特徴 */}
       <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-10">
+        <div className="bg-[#fdf9f6]/95 rounded-3xl px-4 md:px-6 py-10">
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
             Marifの特徴
           </h2>
