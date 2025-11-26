@@ -305,47 +305,99 @@ export default function HomePage() {
   </div>
 </section>
 
-      {/* 4. Marifの特徴 */}
-      <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div className="bg-[#fdf9f6]/95 rounded-3xl px-4 md:px-6 py-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
-            Marifの特徴
-          </h2>
+{/* 4. Marifの特徴 */}
+<section className="max-w-5xl mx-auto px-6 pb-20">
+  <div className="bg-[#fdf9f6]/95 rounded-3xl px-4 md:px-6 py-10">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 特徴1 */}
-            <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-7 flex flex-col items-center text-center space-y-4">
-              {/* アイコン枠（あとで画像に差し替えOK） */}
-              <div className="w-28 h-28 rounded-full bg-[#d9e9b8] flex items-center justify-center text-xs text-[#6b3d33]/70">
-                イラスト
-              </div>
-              <div className="space-y-2 text-sm md:text-base leading-relaxed">
-                <p className="font-semibold">自由度の高いサポート</p>
-                <p>
-                  新生活に必要な「もの」の購入を、ちょろっとサポートしてもらうだけ。
-                  贈る側は「自分の金額を指定して支援」でき、
-                  現金というより「ものに結びついた祝福」として受け取れます。
-                </p>
-              </div>
-            </div>
+    <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+      Marifの特徴
+    </h2>
 
-            {/* 特徴2 */}
-            <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-7 flex flex-col items-center text-center space-y-4">
-              <div className="w-28 h-28 rounded-full bg-[#bfe0ff] flex items-center justify-center text-xs text-[#6b3d33]/70">
-                イラスト
-              </div>
-              <div className="space-y-2 text-sm md:text-base leading-relaxed">
-                <p className="font-semibold">安心できるセキュリティ</p>
-                <p>
-                  決済プロバイダー（Stripe）の仕組みを利用し、
-                  集まったご祝儀は手数料を除き、100％新婚夫婦側に届けられます。
-                  Marif自体はカード情報を持たない設計なので安心です。
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {/* 特徴1 */}
+      <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-7
+                      flex flex-col items-center text-center space-y-4
+                      min-h-[320px]">
+
+        {/* 画像 */}
+       <div className="w-40 h-40 rounded-full overflow-hidden shadow-md">
+          <Image
+            src="/feature1.jpg"
+            alt="自由度の高いサポート"
+            width={400}
+            height={400}
+            className="w-full h-full object-cover"
+          />
         </div>
-      </section>
+
+        {/* テキスト */}
+        <div className="space-y-2 text-sm md:text-base leading-relaxed">
+
+          <p className="font-semibold text-xl md:text-2xl">
+            自由度の高いサポート
+          </p>
+
+          <p className="font-semibold text-lg md:text-xl leading-relaxed">
+            <br />
+            新生活に必要な「もの」の購入を
+            <br />
+            ちょろっとサポートしてもらうだけ
+          </p>
+
+          <p className="mt-3 text-left">
+            ・贈る側は「自分の金額を指定して支援」
+            <br />
+            ・現金ではなく「ものに結びついた祝福」として受取
+          </p>
+
+        </div>
+      </div>
+
+      {/* 特徴2 */}
+      <div className="bg-white/90 rounded-2xl px-5 md:px-7 py-7
+                      flex flex-col items-center text-center space-y-4
+                      min-h-[320px]">
+
+        {/* 画像 */}
+        <div className="w-40 h-40 rounded-full overflow-hidden shadow-md">
+          <Image
+            src="/feature2.jpg"
+            alt="安心できるセキュリティ"
+            width={400}
+            height={400}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* テキスト */}
+        <div className="space-y-2 text-sm md:text-base leading-relaxed">
+
+          <p className="font-semibold text-xl md:text-2xl">
+            安心できるセキュリティ
+          </p>
+
+          <p className="font-semibold text-lg md:text-xl leading-relaxed">
+            <br />
+            決済専門プロバイダーの利用
+            <br />
+            集まった金額は100％新婚夫婦へ
+          </p>
+
+          <p className="mt-3 text-left">
+            集まったご祝儀は、手数料を除き
+            <br />
+            100％新婚夫婦に届けられます。
+          </p>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
 
       {/* 5. クロージング & CTA */}
       <section className="max-w-5xl mx-auto px-6 pb-24">
