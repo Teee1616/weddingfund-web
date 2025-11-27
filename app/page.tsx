@@ -399,7 +399,7 @@ export default function HomePage() {
 
 
 
-      {/* 5. クロージング & CTA */}
+            {/* 5. クロージング & CTA */}
       <section className="max-w-5xl mx-auto px-6 pb-24">
         <div className="bg-[#fdf9f6]/95 rounded-2xl shadow-sm px-6 md:px-10 py-10 space-y-8">
           <div className="text-center space-y-4">
@@ -418,64 +418,110 @@ export default function HomePage() {
             </a>
           </div>
 
-          {/* SNS アイコン風（とりあえずテキスト） */}
-          <div className="flex justify-center gap-5 text-xs text-[#6b3d33]/80">
-            <span>Instagram</span>
-            <span>X</span>
-            <span>Facebook</span>
-          </div>
+          {/* SNS アイコン風（とりあえずテキスト） URLはあとで差し替えてね。*/}
+          <div className="flex justify-center items-center mt-4">
+  <a
+    href="https://instagram.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex flex-col items-center gap-1"
+  >
+    <Image
+      src="/icons/instagram.png"
+      alt="Instagram"
+      width={36}
+      height={36}
+      className="opacity-90 hover:opacity-100 transition"
+    />
+    <span className="text-xs text-[#6b3d33]/80 font-medium">
+      Instagram
+    </span>
+  </a>
+</div>
 
-          <div className="space-y-4 text-sm md:text-base">
-            {/* 行1 */}
-            <div className="flex flex-col md:flex-row items-stretch gap-3">
-              <div className="flex-1 flex items-center gap-3 bg-white/90 rounded-2xl px-5 py-4">
-                <div className="px-4 py-2 rounded-full bg-[#8b5a4a] text-white text-sm">
-                  アイコン
-                </div>
-                <div className="space-y-1">
-                  <p className="font-semibold">
-                    具体的な流れが気になりますか？
-                  </p>
-                  <p className="text-xs md:text-sm text-[#8b5a4a]">
-                    Marif のガイドを見て、イメージを確認してみてください。
-                  </p>
-                </div>
-              </div>
-              <a
-                href="#"
-                className="md:w-40 shrink-0 text-center rounded-2xl bg-[#6b3d33] text-white px-4 py-4 text-sm font-semibold flex items-center justify-center"
-              >
-                ガイドを見る
-              </a>
-            </div>
 
-            {/* 行2 */}
-            <div className="flex flex-col md:flex-row items-stretch gap-3">
-              <div className="flex-1 flex items-center gap-3 bg-white/90 rounded-2xl px-5 py-4">
-                <div className="px-4 py-2 rounded-full bg-[#8b5a4a] text-white text-sm">
-                  アイコン
-                </div>
-                <div className="space-y-1">
-                  <p className="font-semibold">
-                    利用料金が気になりますか？
-                  </p>
-                  <p className="text-xs md:text-sm text-[#8b5a4a]">
-                    Marif の利用料金は一律 XXX 円、
-                    決済手数料 X% のみとなります。
-                    ギフト購入に利用されなかったご祝儀は全額振込か返金を選択いただけます。
-                  </p>
-                </div>
-              </div>
-              <a
-                href="#"
-                className="md:w-40 shrink-0 text-center rounded-2xl bg-[#6b3d33] text-white px-4 py-4 text-sm font-semibold flex items-center justify-center"
-              >
-                料金の詳細を見る
-              </a>
-            </div>
-          </div>
+
+<div className="space-y-4 text-sm md:text-base">
+
+  {/* 行1：ガイド */}
+  <div className="bg-white/90 rounded-2xl px-5 py-4 flex flex-col md:flex-row items-center gap-4">
+    
+    <div className="flex items-center gap-4 flex-1">
+      <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+        <Image
+          src="/cta-icon-guide.jpg"
+          alt="ガイドアイコン"
+          width={80}
+          height={80}
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <p className="font-semibold text-base md:text-lg">
+          具体的な流れが気になりますか？
+        </p>
+
+        {/* ★ 太字に変更 */}
+        <p className="font-bold text-xs md:text-sm text-[#8b5a4a]">
+          Marif のガイドを見て、イメージを確認してみてください
+        </p>
+      </div>
+    </div>
+
+    <a
+      href="#"
+      className="w-full md:w-auto rounded-full bg-[#6b3d33] text-white px-6 py-3 text-sm font-semibold flex items-center justify-center"
+    >
+      ガイドを見る
+    </a>
+  </div>
+
+  {/* 行2：料金 */}
+  <div className="bg-white/90 rounded-2xl px-5 py-4 flex flex-col md:flex-row items-center gap-4">
+    
+    <div className="flex items-center gap-4 flex-1">
+      <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-sm flex-shrink-0">
+        <Image
+          src="/cta-icon-price.jpg"
+          alt="料金アイコン"
+          width={80}
+          height={80}
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <p className="font-semibold text-base md:text-lg">
+          利用料金が気になりますか？
+        </p>
+
+        {/* ★ 太字＋最後の文章を改行 */}
+        <p className="text-xs md:text-sm text-[#8b5a4a] leading-relaxed">
+  <span className="font-bold">
+    Marif の利用料金は一律 XXX 円、決済手数料 X% のみとなります
+  </span>
+  <br />
+  ※ギフト購入に利用されなかったご祝儀は全額振込か返金を選択いただけます
+</p>
+
+      </div>
+    </div>
+
+    <a
+      href="#"
+      className="w-full md:w-auto rounded-full bg-[#6b3d33] text-white px-6 py-3 text-sm font-semibold flex items-center justify-center"
+    >
+      料金の詳細を見る
+    </a>
+  </div>
+
+</div>
+
+
         </div>
       </section>
+
 
       {/* Footer */}
       <footer className="py-6 text-center text-xs text-[#8b5a4a]/80">
