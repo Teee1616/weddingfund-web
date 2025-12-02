@@ -13,35 +13,62 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
-  e.preventDefault();
-  setErrorMsg(null);
-  setLoading(true);
+    e.preventDefault();
+    setErrorMsg(null);
+    setLoading(true);
 
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    console.log('signIn result', { data, error }); // ← 追加
+      console.log('signIn result', { data, error });
 
-    if (error) {
-      console.error('login error', error);
-      setErrorMsg(error.message);
+      if (error) {
+        console.error('login error', error);
+        setErrorMsg(error.message);
+        return;
+      }
+
+      // ここから追加：auth.users → public.users 同期（upsert）
+      try {
+        const { data: userData, error: getUserError } =
+          await supabase.auth.getUser();
+
+        if (getUserError) {
+          console.error('getUser error after login', getUserError);
+        } else if (userData.user) {
+          const loginUser = userData.user;
+
+          // RLS: auth.uid() = auth_user_id を満たす形で upsert
+          const { error: upsertError } = await supabase
+            .from('users')
+            .upsert(
+              {
+                auth_user_id: loginUser.id,
+                email: loginUser.email,
+              },
+              { onConflict: 'auth_user_id' }
+            );
+
+          if (upsertError) {
+            console.error('users upsert error after login', upsertError);
+          }
+        }
+      } catch (e) {
+        console.error('unexpected error in users sync after login', e);
+      }
+
+      // ログイン成功 → /dashboard へ
+      router.push('/dashboard');
+    } catch (e: any) {
+      console.error('unexpected login error', e);
+      setErrorMsg('予期せぬエラーが発生しました: ' + e.message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // ログイン成功 → 強制的に /dashboard へ
-    window.location.href = '/dashboard';
-  } catch (e: any) {
-    console.error('unexpected login error', e);
-    setErrorMsg('予期せぬエラーが発生しました: ' + e.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50">

@@ -4,131 +4,177 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-type AuthState = 'checking' | 'authed' | 'no-auth';
-
-type AppUser = {
+type GiftList = {
   id: string;
-  email: string;
-  display_name: string | null;
+  title: string | null;
+  description: string | null;
 };
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [authState, setAuthState] = useState<AuthState>('checking');
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [loadingUser, setLoadingUser] = useState(false);
+
+  const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [giftLists, setGiftLists] = useState<GiftList[]>([]);
 
   useEffect(() => {
-    const init = async () => {
-      // 1) セッション確認
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+    const loadDashboard = async () => {
+      setLoading(true);
+      setErrorMsg(null);
 
-      if (sessionError) {
-        console.error('getSession error', sessionError);
-      }
+      // 1) 現在の auth ユーザーを取得
+      const { data: userData, error: getUserError } =
+        await supabase.auth.getUser();
 
-      if (!session) {
-        setAuthState('no-auth');
-        router.replace('/login');
+      if (getUserError || !userData.user) {
+        // 未ログインならログインページへ
+        router.push('/login');
         return;
       }
 
-      setAuthState('authed');
+      const authUser = userData.user;
 
-      // 2) アプリ側 users テーブルからユーザー情報取得
-      setLoadingUser(true);
-      setErrorMsg(null);
-
-      const authUserId = session.user.id;
-
-      const { data, error } = await supabase
+      // 2) public.users を取得（RLS: auth.uid() = auth_user_id 前提）
+      const { data: appUser, error: appUserError } = await supabase
         .from('users')
-        .select('id, email, display_name')
-        .eq('auth_user_id', authUserId)
+        .select('id, display_name')
+        .eq('auth_user_id', authUser.id)
         .single();
 
-      if (error) {
-        console.error('fetch app user error', error);
+      if (appUserError || !appUser) {
+        console.error('failed to fetch app user', appUserError);
         setErrorMsg('ユーザー情報の取得に失敗しました。');
-      } else if (data) {
-        setAppUser(data as AppUser);
+        setLoading(false);
+        return;
       }
 
-      setLoadingUser(false);
+      setDisplayName(appUser.display_name ?? authUser.email ?? null);
+
+      // 3) couple_profiles を取得（1ユーザー1件想定）
+      const { data: couple, error: coupleError } = await supabase
+        .from('couple_profiles')
+        .select('id')
+        .eq('user_id', appUser.id)
+        .single();
+
+      if (coupleError || !couple) {
+        console.error('failed to fetch couple profile', coupleError);
+        setErrorMsg(
+          'カップルプロフィールが見つかりません。サインアップ処理を確認してください。'
+        );
+        setLoading(false);
+        return;
+      }
+
+      // 4) gift_lists を取得
+      const { data: lists, error: listsError } = await supabase
+        .from('gift_lists')
+        .select('id, title, description')
+        .eq('couple_id', couple.id)
+        .order('created_at', { ascending: true });
+
+      if (listsError) {
+        console.error('failed to fetch gift lists', listsError);
+        setErrorMsg('ギフトリストの取得に失敗しました。');
+        setLoading(false);
+        return;
+      }
+
+      setGiftLists(lists ?? []);
+      setLoading(false);
     };
 
-    init();
+    loadDashboard();
   }, [router]);
 
-  // ログインチェック中
-  if (authState === 'checking') {
+  if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p>ログイン状態を確認中…</p>
+        <p className="text-sm text-slate-600">読み込み中…</p>
       </main>
     );
   }
 
-  // 未ログイン → /login に飛ばす途中
-  if (authState === 'no-auth') {
+  if (errorMsg) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p>ログインしていません。ログインページへ移動します…</p>
-      </main>
-    );
-  }
-
-  // ここに来るのは「ログイン済み」のときだけ
-  return (
-    <main className="min-h-screen p-6 bg-slate-50">
-      <header className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">ダッシュボード</h1>
-
-          {loadingUser && (
-            <p className="text-sm text-slate-500 mt-1">
-              ユーザー情報を読み込み中…
-            </p>
-          )}
-
-          {appUser && (
-            <p className="text-sm text-slate-700 mt-1">
-              こんにちは、
-              <span className="font-semibold">
-                {appUser.display_name || appUser.email}
-              </span>
-              さん
-            </p>
-          )}
-
-          {errorMsg && (
-            <p className="text-sm text-red-600 mt-1">{errorMsg}</p>
-          )}
+        <div className="bg-white shadow-md rounded-xl p-6 max-w-md w-full">
+          <p className="text-sm text-red-600 whitespace-pre-line">
+            {errorMsg}
+          </p>
         </div>
+      </main>
+    );
+  }
 
-        <button
-          className="text-sm text-red-600 underline"
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = '/login';
-          }}
-        >
-          ログアウト
-        </button>
-      </header>
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-3xl mx-auto py-10 px-4 space-y-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">
+              ようこそ、{displayName ?? 'カップルさん'}
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              結婚祝いのギフトリストを管理できます。
+            </p>
+          </div>
+          <button
+            className="text-xs text-slate-500 underline"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = '/login';
+            }}
+          >
+            ログアウト
+          </button>
+        </header>
 
-      <section className="mt-4">
-        <h2 className="text-lg font-semibold mb-2">今後ここに追加するもの</h2>
-        <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-          <li>ギフトリスト一覧</li>
-          <li>新規ギフトリスト作成ボタン</li>
-          <li>支援状況のサマリー</li>
-        </ul>
-      </section>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">あなたのギフトリスト</h2>
+            <button
+              className="text-xs bg-black text-white rounded px-3 py-1"
+              onClick={() => router.push('/gift-lists/new')}
+            >
+              新しいリストを作成
+            </button>
+          </div>
+
+          {giftLists.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              まだギフトリストがありません。「新しいリストを作成」から始めましょう。
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {giftLists.map((list) => (
+                <li
+                  key={list.id}
+                  className="bg-white border rounded-lg px-4 py-3 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      {list.title || 'タイトル未設定'}
+                    </p>
+                    {list.description && (
+                      <p className="text-xs text-slate-500">
+                        {list.description}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    className="text-xs text-blue-600 underline"
+                    onClick={() => router.push(`/gift-lists/${list.id}`)}
+                  >
+                    詳細
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

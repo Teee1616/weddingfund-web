@@ -38,33 +38,42 @@ export default function SignUpPage() {
         return;
       }
 
-      const authUser = signUpData.user;
-      if (!authUser) {
-        setErrorMsg('ユーザー作成に失敗しました。');
+      // メール確認 OFF 前提なら signUp 後にセッションがある想定
+      const { data: userData, error: getUserError } =
+        await supabase.auth.getUser();
+
+      if (getUserError || !userData.user) {
+        console.error('getUser error after signup', getUserError);
+        setErrorMsg('ユーザー作成に失敗しました。もう一度お試しください。');
         setLoading(false);
         return;
       }
 
-      // 2) アプリ側 users テーブルにレコード作成
-      // RLS のポリシーにより「auth.uid() = auth_user_id」なら挿入可能
-      const { error: insertUserError } = await supabase
-        .from('users')
-        .insert({
-          auth_user_id: authUser.id,
-          email,
-          display_name: displayName || null,
-        });
+      const authUser = userData.user;
 
-      if (insertUserError) {
+      // 2) アプリ側 users テーブルにレコード作成（or 更新）
+      const { error: upsertUserError } = await supabase
+        .from('users')
+        .upsert(
+          {
+            auth_user_id: authUser.id,
+            email,
+            display_name: displayName || null,
+          },
+          { onConflict: 'auth_user_id' }
+        );
+
+      if (upsertUserError) {
+        console.error('users upsert error', upsertUserError);
         setErrorMsg(
           'アプリ側ユーザーの作成に失敗しました: ' +
-            insertUserError.message,
+            upsertUserError.message
         );
         setLoading(false);
         return;
       }
 
-      // 3) カップルプロフィールも空で1件作っておく（後で編集可能）
+      // 3) users.id を取得して couple_profiles を作成
       const { data: appUser, error: fetchUserError } = await supabase
         .from('users')
         .select('id')
@@ -72,9 +81,10 @@ export default function SignUpPage() {
         .single();
 
       if (fetchUserError || !appUser) {
+        console.error('fetch app user error', fetchUserError);
         setErrorMsg(
           'ユーザープロフィール取得に失敗しました: ' +
-            (fetchUserError?.message ?? ''),
+            (fetchUserError?.message ?? '')
         );
         setLoading(false);
         return;
@@ -92,9 +102,10 @@ export default function SignUpPage() {
         });
 
       if (insertCoupleError) {
+        console.error('insert couple_profiles error', insertCoupleError);
         setErrorMsg(
           'カップルプロフィールの作成に失敗しました: ' +
-            insertCoupleError.message,
+            insertCoupleError.message
         );
         setLoading(false);
         return;
@@ -103,6 +114,7 @@ export default function SignUpPage() {
       // 4) ダッシュボードへ遷移
       router.push('/dashboard');
     } catch (e: any) {
+      console.error('unexpected sign-up error', e);
       setErrorMsg('予期せぬエラーが発生しました: ' + e.message);
     } finally {
       setLoading(false);
