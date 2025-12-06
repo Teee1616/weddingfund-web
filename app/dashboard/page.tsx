@@ -216,6 +216,7 @@ export default function DashboardPage() {
             <p className="text-xs text-slate-500 mb-2">
               ご登録ありがとうございます。新生活のおひろめやマリフの使い方をご案内します。
             </p>
+            
             <h1 className="text-xl font-bold mb-4">
               {displayName ?? 'ご夫婦'} 様、はじめまして！
             </h1>
