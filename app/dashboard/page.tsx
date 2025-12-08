@@ -1,4 +1,4 @@
-// web/app/dashboard/page.tsx
+// app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,11 +13,11 @@ type GiftList = {
 
 type CoupleProfile = {
   id: string;
-  partner_name: string | null;       // 例: 新郎 or パートナー名
+  partner_name: string | null;
   partner_email: string | null;
   wedding_status: string | null;
-  wedding_date: string | null;       // date 型を string で受ける
-  message_to_guests: string | null;  // 挨拶文
+  wedding_date: string | null;
+  message_to_guests: string | null;
 };
 
 export default function DashboardPage() {
@@ -31,26 +31,26 @@ export default function DashboardPage() {
   const [giftList, setGiftList] = useState<GiftList | null>(null);
   const [giftItemCount, setGiftItemCount] = useState<number>(0);
 
-  // 将来 Stripe 連携したあとにここで支援状況を埋める
   const [totalSupportAmount, setTotalSupportAmount] = useState<number>(0);
   const [supporterCount, setSupporterCount] = useState<number>(0);
+
+  // 公開ボタンのローディング状態
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setErrorMsg(null);
 
-      // 1) ログインユーザー確認
-      const { data: userData, error: getUserError } =
-        await supabase.auth.getUser();
-
-      if (getUserError || !userData.user) {
+      // 1) ログインユーザー取得
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError || !userData.user) {
         router.push('/login');
         return;
       }
       const authUser = userData.user;
 
-      // 2) app users
+      // 2) app users テーブル
       const { data: appUser, error: appUserError } = await supabase
         .from('users')
         .select('id, display_name, email')
@@ -64,11 +64,9 @@ export default function DashboardPage() {
         return;
       }
 
-      setDisplayName(
-        appUser.display_name ?? (appUser.email as string) ?? 'ゲスト'
-      );
+      setDisplayName(appUser.display_name ?? appUser.email ?? 'ゲスト');
 
-      // 3) couple_profiles （1ユーザー1件想定）
+      // 3) couple_profiles（1ユーザー1件想定）
       const { data: coupleProfile, error: coupleError } = await supabase
         .from('couple_profiles')
         .select(
@@ -79,16 +77,14 @@ export default function DashboardPage() {
 
       if (coupleError || !coupleProfile) {
         console.error(coupleError);
-        setErrorMsg(
-          'カップルプロフィールが見つかりません。サインアップ処理を確認してください。'
-        );
+        setErrorMsg('カップルプロフィールが見つかりません。');
         setLoading(false);
         return;
       }
 
       setCouple(coupleProfile as CoupleProfile);
 
-      // 4) gift_lists（とりあえず最初の1件を「メインページ」とみなす）
+      // 4) gift_lists（とりあえず最初の1件をメインページ扱い）
       const { data: lists, error: listsError } = await supabase
         .from('gift_lists')
         .select('id, title, description')
@@ -105,7 +101,7 @@ export default function DashboardPage() {
       const mainList = (lists && lists[0]) || null;
       setGiftList(mainList);
 
-      // 5) メインリストに紐づくアイテム数
+      // 5) アイテム数
       if (mainList) {
         const { count, error: itemsError } = await supabase
           .from('gift_items')
@@ -119,18 +115,16 @@ export default function DashboardPage() {
         }
       }
 
-      // 6) 支援状況（TODO: Stripe & contributions 連携）
-      // いまは 0 のまま。後で contributions テーブルから集計する。
-
       setLoading(false);
     };
 
     load();
   }, [router]);
 
+  // -------- ローディング & エラー表示 --------
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-50">
+      <main className="min-h-screen flex items-center justify-center bg-[#f5f2ec]">
         <p className="text-sm text-slate-600">読み込み中…</p>
       </main>
     );
@@ -138,20 +132,19 @@ export default function DashboardPage() {
 
   if (errorMsg) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-50">
+      <main className="min-h-screen flex items-center justify-center bg-[#f5f2ec]">
         <div className="bg-white shadow-md rounded-xl p-6 max-w-md w-full">
-          <p className="text-sm text-red-600 whitespace-pre-line">
-            {errorMsg}
-          </p>
+          <p className="text-sm text-red-600 whitespace-pre-line">{errorMsg}</p>
         </div>
       </main>
     );
   }
 
-  // 進捗計算（ざっくり）
-  const templateDone = !!giftList; // とりあえずリスト作成済み = テンプレ完了扱い
+  // -------- 進捗計算（必須 4 項目） --------
+  const templateDone = !!giftList;
   const greetingDone = !!couple?.message_to_guests;
-  const profileDone = !!couple?.wedding_status || !!couple?.wedding_date;
+  const profileDone =
+    !!couple?.partner_name || !!couple?.wedding_status || !!couple?.wedding_date;
   const wishlistDone = giftItemCount > 0;
 
   const requiredTotal = 4;
@@ -162,6 +155,41 @@ export default function DashboardPage() {
     Number(wishlistDone);
   const progressPercent = Math.round((requiredDone / requiredTotal) * 100);
 
+  // -------- ページ公開（Stripe 決済） --------
+  const handlePublish = async () => {
+    if (!giftList) return;
+    if (requiredDone < requiredTotal) {
+      alert('必須項目をすべて入力してください。');
+      return;
+    }
+
+    try {
+      setPublishing(true);
+
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'publish_fee',
+          projectId: giftList.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('決済URLの取得に失敗しました。');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('公開処理中にエラーが発生しました。');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // -------- JSX --------
   return (
     <main className="min-h-screen bg-[#f5f2ec]">
       <div className="max-w-5xl mx-auto py-10 px-4 flex gap-6">
@@ -175,27 +203,15 @@ export default function DashboardPage() {
           </div>
 
           <div>
-            <p className="text-xs text-slate-500 mb-1">管理メニュー</p>
-            <ul className="space-y-1 text-xs">
-              <li>
-                <button
-                  className="text-blue-600 underline"
-                  onClick={() => router.push('/gift-lists/new')}
-                >
-                  新しいご祝儀ページを作成
-                </button>
-              </li>
-              {giftList && (
-                <li>
-                  <button
-                    className="text-blue-600 underline"
-                    onClick={() => router.push(`/gift-lists/${giftList.id}`)}
-                  >
-                    ほしいものリストの編集
-                  </button>
-                </li>
-              )}
-            </ul>
+            <p className="text-xs text-slate-500 mb-1">サポートメニュー</p>
+            <div className="space-y-2">
+              <button className="w-full text-xs border border-slate-200 rounded-full py-2">
+                お問い合わせ
+              </button>
+              <button className="w-full text-xs border border-slate-200 rounded-full py-2">
+                ガイド集
+              </button>
+            </div>
           </div>
 
           <button
@@ -209,14 +225,13 @@ export default function DashboardPage() {
           </button>
         </aside>
 
-        {/* メインエリア */}
+        {/* 右メインエリア */}
         <section className="flex-1 space-y-6">
-          {/* あいさつセクション */}
+          {/* あいさつ */}
           <div className="bg-white rounded-2xl shadow-md p-6">
             <p className="text-xs text-slate-500 mb-2">
               ご登録ありがとうございます。新生活のおひろめやマリフの使い方をご案内します。
             </p>
-            
             <h1 className="text-xl font-bold mb-4">
               {displayName ?? 'ご夫婦'} 様、はじめまして！
             </h1>
@@ -231,7 +246,7 @@ export default function DashboardPage() {
                 </p>
                 <button
                   className="mt-1 text-xs bg-black text-white rounded px-3 py-1"
-                  onClick={() => router.push('/profile/edit')}
+                  onClick={() => router.push('/profile/groom')}
                 >
                   作成する（プロフィール）
                 </button>
@@ -296,14 +311,19 @@ export default function DashboardPage() {
                 }
               />
               <SectionRow
-                label="挨拶文"
+                label="挨拶文言"
                 done={greetingDone}
                 onClick={() => router.push('/greeting/edit')}
               />
               <SectionRow
-                label="新郎新婦プロフィール"
-                done={profileDone}
-                onClick={() => router.push('/profile/edit')}
+                label="新郎プロフィール"
+                done={profileDone} // ざっくり「プロフィール」として扱う
+                onClick={() => router.push('/profile/groom')}
+              />
+              <SectionRow
+                label="新婦プロフィール"
+                done={false} // まだフラグがないので false 固定で OK
+                onClick={() => router.push('/profile/bride')}
               />
               <SectionRow
                 label="ほしいものリスト"
@@ -316,51 +336,55 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* 任意項目の例（まだ中身はこれから） */}
+            {/* 任意項目 */}
             <div className="mt-4">
               <p className="text-xs text-slate-500 mb-1">
-                任意項目（登録がなくてもページ公開はできます）
+                任意項目（登録しなくてもページ公開はできます）
               </p>
               <div className="space-y-1 text-xs">
                 <SectionRow
-                  label="お二人のストーリー"
+                  label="新郎ヒストリー"
                   done={false}
-                  onClick={() => router.push('/story/edit')}
+                  onClick={() => router.push('/history/groom')}
                 />
                 <SectionRow
-                  label="思い出写真"
+                  label="新婦ヒストリー"
                   done={false}
-                  onClick={() => router.push('/photos/edit')}
+                  onClick={() => router.push('/history/bride')}
+                />
+                <SectionRow
+                  label="二人の出会いストーリー"
+                  done={false}
+                  onClick={() => router.push('/story/edit')}
                 />
               </div>
             </div>
 
+            {/* プレビュー & 公開ボタン */}
             <div className="mt-6 flex gap-3">
               <button
-                className="flex-1 border border-slate-300 text-xs rounded-full py-2"
-                onClick={() =>
-                  giftList
-                    ? router.push(`/p/preview/${giftList.id}`)
-                    : undefined
-                }
-                disabled={!giftList}
-              >
-                ページのプレビュー
-              </button>
+  className="flex-1 border border-slate-300 text-xs rounded-full py-2 disabled:opacity-60"
+  onClick={() =>
+    giftList
+      ? router.push(`/p/preview?giftListId=${giftList.id}`)  // ←ここ
+      : undefined
+  }
+  disabled={!giftList}
+>
+  ページのプレビュー
+</button>
+
               <button
                 className="flex-1 bg-[#c49a6c] text-white text-xs rounded-full py-2 disabled:opacity-60"
-                disabled={!giftList || requiredDone < requiredTotal}
-                onClick={() => {
-                  // TODO: 公開フラグを立てる / public_url_tokens 発行に繋げる
-                  alert('公開処理はこれから実装します。');
-                }}
+                disabled={!giftList || requiredDone < requiredTotal || publishing}
+                onClick={handlePublish}
               >
-                ページを作成する
+                {publishing ? '処理中…' : 'ページを作成する（¥3,000）'}
               </button>
             </div>
           </div>
 
-          {/* 支援状況（今はダミー） */}
+          {/* 支援状況（ダミー） */}
           <div className="bg-white rounded-2xl shadow-md p-6 space-y-2">
             <h2 className="text-sm font-semibold mb-2">支援状況</h2>
             <p className="text-xs text-slate-600">
