@@ -1,14 +1,16 @@
 // app/dashboard/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 type GiftList = {
   id: string;
   title: string | null;
   description: string | null;
+  greeting_message: string | null;
+  template_key: string | null;
 };
 
 type CoupleProfile = {
@@ -34,86 +36,198 @@ export default function DashboardPage() {
   const [totalSupportAmount, setTotalSupportAmount] = useState<number>(0);
   const [supporterCount, setSupporterCount] = useState<number>(0);
 
-  // 公開ボタンのローディング状態
   const [publishing, setPublishing] = useState(false);
+
+  // 必須・任意判定用のフラグ
+  const [hasGroomProfile, setHasGroomProfile] = useState(false);
+  const [hasBrideProfile, setHasBrideProfile] = useState(false);
+
+  const [hasGroomHistory, setHasGroomHistory] = useState(false);
+  const [hasBrideHistory, setHasBrideHistory] = useState(false);
+  const [hasCoupleHistory, setHasCoupleHistory] = useState(false);
+
+  const [hasQa, setHasQa] = useState(false);
+  const [hasPhotos, setHasPhotos] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setErrorMsg(null);
 
-      // 1) ログインユーザー取得
+      // 1) Supabase auth ユーザー
       const { data: userData, error: authError } = await supabase.auth.getUser();
       if (authError || !userData.user) {
-        router.push('/login');
+        router.push("/login");
+        setLoading(false);
         return;
       }
       const authUser = userData.user;
 
       // 2) app users テーブル
-      const { data: appUser, error: appUserError } = await supabase
-        .from('users')
-        .select('id, display_name, email')
-        .eq('auth_user_id', authUser.id)
+      const { data: appUserRow, error: appUserError } = await supabase
+        .from("users")
+        .select("id, display_name, email")
+        .eq("auth_user_id", authUser.id)
         .single();
 
-      if (appUserError || !appUser) {
+      if (appUserError || !appUserRow) {
         console.error(appUserError);
-        setErrorMsg('ユーザー情報の取得に失敗しました。');
+        setErrorMsg("ユーザー情報の取得に失敗しました。");
         setLoading(false);
         return;
       }
 
-      setDisplayName(appUser.display_name ?? appUser.email ?? 'ゲスト');
+      setDisplayName(appUserRow.display_name ?? appUserRow.email ?? "ゲスト");
 
-      // 3) couple_profiles（1ユーザー1件想定）
+      // 3) couple_profiles を取得 or 作成（1ユーザー1件想定）
       const { data: coupleProfile, error: coupleError } = await supabase
-        .from('couple_profiles')
+        .from("couple_profiles")
         .select(
-          'id, partner_name, partner_email, wedding_status, wedding_date, message_to_guests'
+          "id, partner_name, partner_email, wedding_status, wedding_date, message_to_guests"
         )
-        .eq('user_id', appUser.id)
-        .single();
+        .eq("user_id", appUserRow.id)
+        .maybeSingle();
 
-      if (coupleError || !coupleProfile) {
-        console.error(coupleError);
-        setErrorMsg('カップルプロフィールが見つかりません。');
-        setLoading(false);
-        return;
+      let coupleRow = coupleProfile as CoupleProfile | null;
+
+      if (!coupleRow) {
+        const { data: insertedCouple, error: insertCoupleError } =
+          await supabase
+            .from("couple_profiles")
+            .insert({
+              user_id: appUserRow.id,
+              partner_name: null,
+              partner_email: null,
+              wedding_status: null,
+              wedding_date: null,
+              message_to_guests: null,
+            })
+            .select(
+              "id, partner_name, partner_email, wedding_status, wedding_date, message_to_guests"
+            )
+            .single();
+
+        if (insertCoupleError || !insertedCouple) {
+          console.error(insertCoupleError);
+          setErrorMsg("カップルプロフィールの作成に失敗しました。");
+          setLoading(false);
+          return;
+        }
+        coupleRow = insertedCouple as CoupleProfile;
       }
 
-      setCouple(coupleProfile as CoupleProfile);
+      setCouple(coupleRow);
 
-      // 4) gift_lists（とりあえず最初の1件をメインページ扱い）
-      const { data: lists, error: listsError } = await supabase
-        .from('gift_lists')
-        .select('id, title, description')
-        .eq('couple_id', coupleProfile.id)
-        .order('created_at', { ascending: true });
+      // 4) gift_lists（このカップルのメイン支援ページ）を取得 or 作成
+      const { data: giftListData, error: listsError } = await supabase
+        .from("gift_lists")
+        .select("id, title, description, greeting_message, template_key")
+        .eq("couple_id", coupleRow.id)
+        .order("created_at", { ascending: true })
+        .maybeSingle();
 
-      if (listsError) {
-        console.error(listsError);
-        setErrorMsg('ギフトリストの取得に失敗しました。');
-        setLoading(false);
-        return;
+      let mainList = giftListData as GiftList | null;
+
+      if (!mainList) {
+        const { data: insertedList, error: insertListError } = await supabase
+          .from("gift_lists")
+          .insert({
+            couple_id: coupleRow.id,
+            title: "新生活スタートのご報告",
+            description: "私たちの新生活へのご支援ページです。",
+            currency: "JPY",
+            template_key: "template1",
+            greeting_message:
+              "このたびは私たちの新生活にあたたかいお気持ちをお寄せいただき、ありがとうございます。",
+          })
+          .select("id, title, description, greeting_message, template_key")
+          .single();
+
+        if (insertListError || !insertedList) {
+          console.error(insertListError);
+          setErrorMsg("ご祝儀ページの作成に失敗しました。");
+          setLoading(false);
+          return;
+        }
+        mainList = insertedList as GiftList;
       }
 
-      const mainList = (lists && lists[0]) || null;
       setGiftList(mainList);
 
-      // 5) アイテム数
-      if (mainList) {
-        const { count, error: itemsError } = await supabase
-          .from('gift_items')
-          .select('id', { count: 'exact', head: true })
-          .eq('gift_list_id', mainList.id);
-
-        if (itemsError) {
-          console.error(itemsError);
-        } else if (typeof count === 'number') {
-          setGiftItemCount(count);
-        }
+      if (!mainList) {
+        setLoading(false);
+        return;
       }
+
+      const giftListId = mainList.id;
+
+      // 5) アイテム数（ほしいものリスト）
+      const { count: itemCount, error: itemsError } = await supabase
+        .from("gift_items")
+        .select("id", { count: "exact", head: true })
+        .eq("gift_list_id", giftListId);
+
+      if (itemsError) {
+        console.error(itemsError);
+      }
+      setGiftItemCount(itemCount ?? 0);
+
+      // 6) person_profiles（新郎/新婦プロフィール）
+      const { data: persons, error: personsError } = await supabase
+        .from("person_profiles")
+        .select("role")
+        .eq("gift_list_id", giftListId);
+
+      if (personsError) {
+        console.error(personsError);
+      } else {
+        setHasGroomProfile(!!persons?.some((p) => p.role === "groom"));
+        setHasBrideProfile(!!persons?.some((p) => p.role === "bride"));
+      }
+
+      // 7) histories（新郎/新婦/二人のヒストリー）
+      const { data: histories, error: historiesError } = await supabase
+        .from("histories")
+        .select("role")
+        .eq("gift_list_id", giftListId);
+
+      if (historiesError) {
+        console.error(historiesError);
+      } else {
+        setHasGroomHistory(
+          histories?.some((h) => h.role === "groom") ?? false
+        );
+        setHasBrideHistory(
+          histories?.some((h) => h.role === "bride") ?? false
+        );
+        setHasCoupleHistory(
+          histories?.some((h) => h.role === "couple") ?? false
+        );
+      }
+
+      // 8) 一問一答（couple_qa）
+      const { count: qaCount, error: qaError } = await supabase
+        .from("couple_qa")
+        .select("id", { count: "exact", head: true })
+        .eq("gift_list_id", giftListId);
+
+      if (qaError) {
+        console.error(qaError);
+      }
+      setHasQa((qaCount ?? 0) > 0);
+
+      // 9) 写真集（couple_photos）
+      const { count: photoCount, error: photoError } = await supabase
+        .from("couple_photos")
+        .select("id", { count: "exact", head: true })
+        .eq("gift_list_id", giftListId);
+
+      if (photoError) {
+        console.error(photoError);
+      }
+      setHasPhotos((photoCount ?? 0) > 0);
+
+      // ※ totalSupportAmount / supporterCount は後で contributions から集計予定
 
       setLoading(false);
     };
@@ -134,24 +248,27 @@ export default function DashboardPage() {
     return (
       <main className="min-h-screen flex items-center justify-center bg-[#f5f2ec]">
         <div className="bg-white shadow-md rounded-xl p-6 max-w-md w-full">
-          <p className="text-sm text-red-600 whitespace-pre-line">{errorMsg}</p>
+          <p className="text-sm text-red-600 whitespace-pre-line">
+            {errorMsg}
+          </p>
         </div>
       </main>
     );
   }
 
-  // -------- 進捗計算（必須 4 項目） --------
-  const templateDone = !!giftList;
-  const greetingDone = !!couple?.message_to_guests;
-  const profileDone =
-    !!couple?.partner_name || !!couple?.wedding_status || !!couple?.wedding_date;
+  // -------- 進捗計算（必須 5 項目） --------
+  const templateDone = !!giftList?.template_key;
+  const greetingDone = !!giftList?.greeting_message;
+  const groomProfileDone = hasGroomProfile;
+  const brideProfileDone = hasBrideProfile;
   const wishlistDone = giftItemCount > 0;
 
-  const requiredTotal = 4;
+  const requiredTotal = 5;
   const requiredDone =
     Number(templateDone) +
     Number(greetingDone) +
-    Number(profileDone) +
+    Number(groomProfileDone) +
+    Number(brideProfileDone) +
     Number(wishlistDone);
   const progressPercent = Math.round((requiredDone / requiredTotal) * 100);
 
@@ -159,18 +276,18 @@ export default function DashboardPage() {
   const handlePublish = async () => {
     if (!giftList) return;
     if (requiredDone < requiredTotal) {
-      alert('必須項目をすべて入力してください。');
+      alert("必須項目をすべて入力してください。");
       return;
     }
 
     try {
       setPublishing(true);
 
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: 'publish_fee',
+          type: "publish_fee",
           projectId: giftList.id,
         }),
       });
@@ -179,14 +296,19 @@ export default function DashboardPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('決済URLの取得に失敗しました。');
+        alert("決済URLの取得に失敗しました。");
       }
     } catch (e) {
       console.error(e);
-      alert('公開処理中にエラーが発生しました。');
+      alert("公開処理中にエラーが発生しました。");
     } finally {
       setPublishing(false);
     }
+  };
+
+  const goToEdit = () => {
+    if (!giftList) return;
+    router.push(`/dashboard/projects/${giftList.id}/edit`);
   };
 
   // -------- JSX --------
@@ -198,7 +320,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-slate-500 mb-1">お名前</p>
             <p className="text-sm font-semibold">
-              {displayName ?? 'ゲスト'}
+              {displayName ?? "ゲスト"}
             </p>
           </div>
 
@@ -218,7 +340,7 @@ export default function DashboardPage() {
             className="mt-auto text-xs text-slate-500 underline"
             onClick={async () => {
               await supabase.auth.signOut();
-              window.location.href = '/login';
+              window.location.href = "/login";
             }}
           >
             ログアウト
@@ -227,160 +349,133 @@ export default function DashboardPage() {
 
         {/* 右メインエリア */}
         <section className="flex-1 space-y-6">
-          {/* あいさつ */}
-          <div className="bg-white rounded-2xl shadow-md p-6">
-            <p className="text-xs text-slate-500 mb-2">
-              ご登録ありがとうございます。新生活のおひろめやマリフの使い方をご案内します。
-            </p>
-            <h1 className="text-xl font-bold mb-4">
-              {displayName ?? 'ご夫婦'} 様、はじめまして！
-            </h1>
-
-            <ol className="space-y-3 text-sm">
-              <li>
-                <p className="font-semibold mb-1">
-                  ① 新郎新婦様のお名前・基本情報
-                </p>
-                <p className="text-xs text-slate-600 mb-1">
-                  ご紹介ページに表示するお名前や挙式予定日などを登録します。
-                </p>
-                <button
-                  className="mt-1 text-xs bg-black text-white rounded px-3 py-1"
-                  onClick={() => router.push('/profile/groom')}
-                >
-                  作成する（プロフィール）
-                </button>
-              </li>
-              <li>
-                <p className="font-semibold mb-1">② 挨拶文の作成</p>
-                <p className="text-xs text-slate-600 mb-1">
-                  ゲストの皆さまへのメッセージを登録します。
-                </p>
-                <button
-                  className="mt-1 text-xs bg-black text-white rounded px-3 py-1"
-                  onClick={() => router.push('/greeting/edit')}
-                >
-                  作成する（挨拶文）
-                </button>
-              </li>
-              <li>
-                <p className="font-semibold mb-1">③ ほしいものリスト</p>
-                <p className="text-xs text-slate-600 mb-1">
-                  ご祝儀としていただいたご支援を、どのようなギフトに充てるかまとめます。
-                </p>
-                <button
-                  className="mt-1 text-xs bg-black text-white rounded px-3 py-1"
-                  onClick={() =>
-                    giftList
-                      ? router.push(`/gift-lists/${giftList.id}`)
-                      : router.push('/gift-lists/new')
-                  }
-                >
-                  {giftList ? 'リストを編集する' : 'リストを作成する'}
-                </button>
-              </li>
-            </ol>
-          </div>
-
-          {/* ご祝儀ページ作成ステップ */}
-          <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-            <h2 className="text-sm font-semibold mb-2">ご祝儀ページ作成</h2>
-
-            {/* 進捗バー */}
-            <div className="mb-4">
-              <p className="text-xs text-slate-600 mb-1">
-                進捗状況：{requiredDone}/{requiredTotal} 件 完了
+          {/* あいさつ ＋ ご祝儀ページ作成 */}
+          <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
+            {/* あいさつ部分 */}
+            <div>
+              <p className="text-xs text-slate-500 mb-2">
+                ご登録ありがとうございます。新生活のおひろめやマリフの使い方をご案内します。
               </p>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#c49a6c]"
-                  style={{ width: `${progressPercent}%` }}
+              <h1 className="text-xl font-bold mb-4">
+                {displayName ?? "ご夫婦"} 様、はじめまして！
+              </h1>
+
+              <ol className="space-y-3 text-sm">
+                <li>
+                  <p className="font-semibold mb-1">
+                    ① 新郎新婦様のお名前・基本情報
+                  </p>
+                  <p className="text-xs text-slate-600 mb-1">
+                    ご紹介ページに表示するお名前や挙式予定日などを登録します。
+                  </p>
+                  <button
+                    className="mt-1 text-xs bg黒 text-white rounded px-3 py-1 bg-black"
+                    onClick={goToEdit}
+                  >
+                    編集する
+                  </button>
+                </li>
+              </ol>
+            </div>
+
+            {/* ご祝儀ページ作成ステップ */}
+            <div className="border-t border-slate-100 pt-4 space-y-4">
+              <h2 className="text-sm font-semibold mb-2">ご祝儀ページ作成</h2>
+
+              {/* 進捗バー */}
+              <div className="mb-2">
+                <p className="text-xs text-slate-600 mb-1">
+                  進捗状況：{requiredDone}/{requiredTotal} 件 完了
+                </p>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#c49a6c]"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 必須項目チェックリスト */}
+              <div className="space-y-2 text-xs">
+                <SectionRow
+                  label="テンプレート選択"
+                  done={templateDone}
+                  onClick={goToEdit}
+                />
+                <SectionRow
+                  label="挨拶文言"
+                  done={greetingDone}
+                  onClick={goToEdit}
+                />
+                <SectionRow
+                  label="新郎プロフィール"
+                  done={groomProfileDone}
+                  onClick={goToEdit}
+                />
+                <SectionRow
+                  label="新婦プロフィール"
+                  done={brideProfileDone}
+                  onClick={goToEdit}
+                />
+                <SectionRow
+                  label="ほしいものリスト"
+                  done={wishlistDone}
+                  onClick={goToEdit}
                 />
               </div>
-            </div>
 
-            {/* 必須項目 */}
-            <div className="space-y-2 text-xs">
-              <SectionRow
-                label="テンプレート選択"
-                done={templateDone}
-                onClick={() =>
-                  giftList
-                    ? router.push(`/gift-lists/${giftList.id}`)
-                    : router.push('/gift-lists/new')
-                }
-              />
-              <SectionRow
-                label="挨拶文言"
-                done={greetingDone}
-                onClick={() => router.push('/greeting/edit')}
-              />
-              <SectionRow
-                label="新郎プロフィール"
-                done={profileDone} // ざっくり「プロフィール」として扱う
-                onClick={() => router.push('/profile/groom')}
-              />
-              <SectionRow
-                label="新婦プロフィール"
-                done={false} // まだフラグがないので false 固定で OK
-                onClick={() => router.push('/profile/bride')}
-              />
-              <SectionRow
-                label="ほしいものリスト"
-                done={wishlistDone}
-                onClick={() =>
-                  giftList
-                    ? router.push(`/gift-lists/${giftList.id}`)
-                    : router.push('/gift-lists/new')
-                }
-              />
-            </div>
-
-            {/* 任意項目 */}
-            <div className="mt-4">
-              <p className="text-xs text-slate-500 mb-1">
-                任意項目（登録しなくてもページ公開はできます）
-              </p>
-              <div className="space-y-1 text-xs">
-                <SectionRow
-                  label="新郎ヒストリー"
-                  done={false}
-                  onClick={() => router.push('/history/groom')}
-                />
-                <SectionRow
-                  label="新婦ヒストリー"
-                  done={false}
-                  onClick={() => router.push('/history/bride')}
-                />
-                <SectionRow
-                  label="二人の出会いストーリー"
-                  done={false}
-                  onClick={() => router.push('/story/edit')}
-                />
+              {/* 任意項目 */}
+              <div className="mt-4">
+                <p className="text-xs text-slate-500 mb-1">
+                  任意項目（登録しなくてもページ公開はできます）
+                </p>
+                <div className="space-y-2 text-xs">
+                  <SectionRow
+                    label="新郎ヒストリー"
+                    done={hasGroomHistory}
+                    onClick={goToEdit}
+                  />
+                  <SectionRow
+                    label="新婦ヒストリー"
+                    done={hasBrideHistory}
+                    onClick={goToEdit}
+                  />
+                  <SectionRow
+                    label="新郎新婦のヒストリー"
+                    done={hasCoupleHistory}
+                    onClick={goToEdit}
+                  />
+                  <SectionRow
+                    label="一問一答"
+                    done={hasQa}
+                    onClick={goToEdit}
+                  />
+                  <SectionRow
+                    label="写真集"
+                    done={hasPhotos}
+                    onClick={goToEdit}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* プレビュー & 公開ボタン */}
-            <div className="mt-6 flex gap-3">
-              <button
-  className="flex-1 border border-slate-300 text-xs rounded-full py-2 disabled:opacity-60"
-  onClick={() =>
-    giftList
-      ? router.push(`/p/preview?giftListId=${giftList.id}`)  // ←ここ
-      : undefined
-  }
-  disabled={!giftList}
->
-  ページのプレビュー
-</button>
+              {/* プレビュー & 公開ボタン */}
+              <div className="mt-4 flex gap-3">
+                <button
+                  className="flex-1 border border-slate-300 text-xs rounded-full py-2 disabled:opacity-60"
+                  onClick={goToEdit}
+                  disabled={!giftList}
+                >
+                  ページのプレビュー / 編集
+                </button>
 
-              <button
-                className="flex-1 bg-[#c49a6c] text-white text-xs rounded-full py-2 disabled:opacity-60"
-                disabled={!giftList || requiredDone < requiredTotal || publishing}
-                onClick={handlePublish}
-              >
-                {publishing ? '処理中…' : 'ページを作成する（¥3,000）'}
-              </button>
+                <button
+                  className="flex-1 bg-[#c49a6c] text-white text-xs rounded-full py-2 disabled:opacity-60"
+                  disabled={!giftList || requiredDone < requiredTotal || publishing}
+                  onClick={handlePublish}
+                >
+                  {publishing ? "処理中…" : "ページを作成する（¥3,000）"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -417,11 +512,11 @@ function SectionRow({ label, done, onClick }: SectionRowProps) {
         <span
           className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${
             done
-              ? 'bg-[#c49a6c] border-[#c49a6c] text-white'
-              : 'border-slate-300 text-slate-400'
+              ? "bg-[#c49a6c] border-[#c49a6c] text-white"
+              : "border-slate-300 text-slate-400"
           }`}
         >
-          {done ? '✓' : ''}
+          {done ? "✓" : ""}
         </span>
         <span className="text-xs">{label}</span>
       </div>
