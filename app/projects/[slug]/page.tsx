@@ -1,25 +1,22 @@
 // app/projects/[slug]/page.tsx
 
-// ここを修正
-import { SupporterLPLayout } from '@/app/components/supporter-lp/Layout';
-import { getSupporterLPPageData } from './data';
-import type { SupporterLPPageData } from './types';
-
+import { SupporterLPLayout } from "@/app/components/supporter-lp/Layout";
+import { getSupporterLPPageData } from "./data";
+import type { SupporterLPPageData } from "./types";
 
 type PageParams = {
   slug: string;
 };
 
 type PageProps = {
-  // Next.js 16 では params が Promise になる
-  params: Promise<PageParams>;
+  // Next.js のバージョン差異吸収（Promise の場合もある）
+  params: PageParams | Promise<PageParams>;
 };
 
 export default async function ProjectPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = await Promise.resolve(params);
 
-  const pageData: SupporterLPPageData | null =
-    await getSupporterLPPageData(slug);
+  const pageData: SupporterLPPageData | null = await getSupporterLPPageData(slug);
 
   if (!pageData) {
     return (
@@ -29,6 +26,5 @@ export default async function ProjectPage({ params }: PageProps) {
     );
   }
 
-  // ここで共通レイアウトに丸投げ
   return <SupporterLPLayout pageData={pageData} />;
 }

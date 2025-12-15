@@ -1,14 +1,14 @@
-// app/projects/[slug]/_components/HistorySection.tsx
+// components/supporter-lp/HistorySection.tsx
 import type {
   HistorySection as HistorySectionData,
   HistoryItem,
-} from "../types";
+} from '@/app/projects/[slug]/types';
 
 type Props = {
   data: HistorySectionData;
 };
 
-// ★ named export（export function ...）にすること！
+// ★ named export
 export function HistorySection({ data }: Props) {
   // 万一 undefined でも空配列として扱う
   const groomItems: HistoryItem[] = data.groom ?? [];
@@ -24,10 +24,10 @@ export function HistorySection({ data }: Props) {
     <section className="bg-white rounded-3xl shadow-sm px-8 py-10 space-y-8">
       <header className="space-y-1 text-center">
         <p className="text-xs tracking-[0.2em] text-neutral-500">
-          {data.headingJa || "HISTORY"}
+          {data.headingJa || 'HISTORY'}
         </p>
         <h2 className="text-lg font-semibold text-[#7b4a3a]">
-          {data.titleJa || "新郎新婦のヒストリー"}
+          {data.titleJa || '新郎新婦のヒストリー'}
         </h2>
       </header>
 
@@ -84,7 +84,7 @@ export function HistorySection({ data }: Props) {
 type TimelineColumnProps = {
   label: string;
   items: HistoryItem[];
-  align: "left" | "right";
+  align: 'left' | 'right';
 };
 
 function TimelineColumn({ label, items, align }: TimelineColumnProps) {
@@ -93,9 +93,9 @@ function TimelineColumn({ label, items, align }: TimelineColumnProps) {
   return (
     <div
       className={
-        align === "right"
-          ? "md:text-right space-y-6"
-          : "md:text-left space-y-6"
+        align === 'right'
+          ? 'md:text-right space-y-6'
+          : 'md:text-left space-y-6'
       }
     >
       <p className="text-[11px] tracking-[0.25em] text-neutral-500 uppercase">
@@ -128,7 +128,7 @@ function HistoryImage({ item }: { item: HistoryItem }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={item.imageUrl}
-          alt={item.title ?? ""}
+          alt={item.title ?? ''}
           className="w-full h-full object-cover"
         />
       ) : (

@@ -1,183 +1,158 @@
-// app/projects/[slug]/data.ts
-import { supabase } from "../../../lib/supabaseClient";
-
-import type {
-  HeroSection,
-  GreetingSection,
-  HistorySection as HistorySectionData,
-  QaSection as QaSectionData,
-  SupporterLPPageData,
-  SupporterLPPageRow,
-  PersonProfile,
-  HistoryItem,
-  QaItem,
-} from "./types";
+import { supabase } from "@/lib/supabaseClient";
+import type { SupporterLPPageData, PersonProfile, HistoryItem, QaItem } from "./types";
 
 export async function getSupporterLPPageData(
-  slug: string
+  slug: string,
+  opts?: { preview?: boolean },
 ): Promise<SupporterLPPageData | null> {
-  console.log("[getSupporterLPPageData] slug:", slug);
+  const preview = opts?.preview ?? false;
 
-  // ① supporter_lp_pages
-  const { data: row, error } = await supabase
-    .from("supporter_lp_pages")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle<SupporterLPPageRow>();
+  try {
+    // 1) slug -> couple
+    const { data: couple, error: coupleErr } = await supabase
+      .from("couple_profiles")
+      .select("*")
+      .eq("slug", slug)
+      .single();
 
-  if (error) {
-    console.error("[getSupporterLPPageData] error:", error);
-    return null;
-  }
-  if (!row) {
-    console.warn("[getSupporterLPPageData] not found:", slug);
-    return null;
-  }
+    if (coupleErr || !couple) {
+      console.error("[getSupporterLPPageData] couple not found:", coupleErr);
+      return null;
+    }
 
-  const hero: HeroSection = {
-    backgroundImageUrl: row.hero_background_image_url ?? null,
-    groomNameRomaji: row.hero_groom_name_romaji ?? null,
-    brideNameRomaji: row.hero_bride_name_romaji ?? null,
-    weddingDate: row.wedding_date ?? null,
-  };
+    // 2) couple -> gift_list（※理想は couple_id UNIQUE で 1件保証）
+    const { data: giftList, error: glErr } = await supabase
+      .from("gift_lists")
+      .select("*")
+      .eq("couple_id", couple.id)
+      .single();
 
-  const greeting: GreetingSection = {
-    headingJa: row.greeting_heading_ja ?? null,
-    titleJa: row.greeting_title_ja ?? null,
-    bodyJa: row.greeting_body_ja ?? null,
-    signedAtJa: row.greeting_signed_at ?? null,
-    signature: row.greeting_signature ?? null,
-  };
+    if (glErr || !giftList) {
+      console.error("[getSupporterLPPageData] gift_list not found:", glErr);
+      return null;
+    }
 
-  const coupleProfileId = row.couple_profile_id;
+    // 3) 公開判定（previewなら無視）
+    if (!preview && giftList.is_public !== true) {
+      console.warn("[getSupporterLPPageData] not public");
+      return null;
+    }
 
-  // ② パートナープロフィール（新郎・新婦）
-  const { data: partnerRows, error: partnersError } = await supabase
-    .from("supporter_lp_partner_profiles")
-    .select("*")
-    .eq("couple_profile_id", coupleProfileId);
+    // 4) 子テーブル取得（gift_list_id）
+    const [itemsRes, historiesRes, qaRes, photosRes] = await Promise.all([
+      supabase
+        .from("gift_items")
+        .select("*")
+        .eq("gift_list_id", giftList.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("histories")
+        .select("*")
+        .eq("gift_list_id", giftList.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("couple_qa")
+        .select("*")
+        .eq("gift_list_id", giftList.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("couple_photos")
+        .select("*")
+        .eq("gift_list_id", giftList.id)
+        .order("sort_order", { ascending: true }),
+    ]);
 
-  if (partnersError) {
-    console.error("[getSupporterLPPageData] partnersError:", partnersError);
-    return null;
-  }
+    // person_profiles は存在しない環境もあり得るので「失敗しても落とさない」
+    const { data: personProfiles, error: personsErr } = await supabase
+      .from("person_profiles")
+      .select("*")
+      .eq("gift_list_id", giftList.id);
 
-  const groomRaw = partnerRows?.find((p) => p.role === "groom") ?? null;
-  const brideRaw = partnerRows?.find((p) => p.role === "bride") ?? null;
+    if (itemsRes.error) console.error("[getSupporterLPPageData] gift_items error:", itemsRes.error);
+    if (historiesRes.error) console.error("[getSupporterLPPageData] histories error:", historiesRes.error);
+    if (qaRes.error) console.error("[getSupporterLPPageData] couple_qa error:", qaRes.error);
+    if (photosRes.error) console.error("[getSupporterLPPageData] couple_photos error:", photosRes.error);
+    if (personsErr) console.error("[getSupporterLPPageData] person_profiles error:", personsErr);
 
-  const groomProfile: PersonProfile | null = groomRaw
-    ? {
-        role: "groom",
-        fullNameJa: groomRaw.full_name_ja,
-        fullNameRomaji: groomRaw.full_name_romaji,
-        profileImageUrl: groomRaw.profile_image_url,
-        birthDate: groomRaw.birth_date,
-        birthPlace: groomRaw.birth_place,
-        bloodType: groomRaw.blood_type,
-        oneLiner: groomRaw.one_liner,
-      }
-    : null;
+    // itemsRes は今は Layout 側が使ってない前提なので、エラーでも落とさないなら外せる。
+    if (historiesRes.error || qaRes.error || photosRes.error) return null;
 
-  const brideProfile: PersonProfile | null = brideRaw
-    ? {
-        role: "bride",
-        fullNameJa: brideRaw.full_name_ja,
-        fullNameRomaji: brideRaw.full_name_romaji,
-        profileImageUrl: brideRaw.profile_image_url,
-        birthDate: brideRaw.birth_date,
-        birthPlace: brideRaw.birth_place,
-        bloodType: brideRaw.blood_type,
-        oneLiner: brideRaw.one_liner,
-      }
-    : null;
-
-  // ③ ヒストリー
-  const { data: historiesRaw, error: historiesError } = await supabase
-    .from("supporter_lp_histories")
-    .select("*")
-    .eq("couple_profile_id", coupleProfileId)
-    .order("sort_order", { ascending: true });
-
-  if (historiesError) {
-    console.error("[getSupporterLPPageData] historiesError:", historiesError);
-    return null;
-  }
-
-  const histories: {
-    groom: HistoryItem[];
-    bride: HistoryItem[];
-    together: HistoryItem[];
-  } = { groom: [], bride: [], together: [] };
-
-  for (const h of historiesRaw ?? []) {
-    const role = h.role as "groom" | "bride" | "together";
-    const item: HistoryItem = {
-      id: h.id,
-      role,
-      eventDate: h.event_date,
-      title: h.title,
-      description: h.description,
-      imageUrl: h.image_url,
-      sortOrder: h.sort_order,
+    // --- 画面用に整形 ---
+    // 現行DDLでは hero_*/greeting_* 等のカラムは gift_lists に存在しないため、
+    // まずは「DBにある情報だけ」で埋める（UI拡張は後で）
+    const hero = {
+      backgroundImageUrl: null,
+      groomNameRomaji: null,
+      brideNameRomaji: null,
+      weddingDate: couple.wedding_date ? String(couple.wedding_date) : null,
     };
 
-    if (role === "groom") histories.groom.push(item);
-    else if (role === "bride") histories.bride.push(item);
-    else histories.together.push(item);
-  }
+    const greeting = {
+      headingJa: null,
+      titleJa: giftList.title ?? null,
+      bodyJa: giftList.greeting_message ?? giftList.description ?? null,
+      signedAtJa: null,
+      signature: null,
+    };
 
-  // 上限（最大5件）だけ切っておく
-  histories.groom = histories.groom.slice(0, 5);
-  histories.bride = histories.bride.slice(0, 5);
-  histories.together = histories.together.slice(0, 5);
+    const histories: HistoryItem[] = (historiesRes.data ?? []).map((h: any) => ({
+      id: h.id,
+      role: h.role ?? "together",
+      eventDate: h.event_date ?? null,
+      title: h.title ?? null,
+      description: h.description ?? "",
+      imageUrl: h.image_url ?? null,
+      sortOrder: typeof h.sort_order === "number" ? h.sort_order : 0,
+    }));
 
-  const history: HistorySectionData = {
-    headingJa: row.history_heading_ja ?? null,
-    titleJa: row.history_title_ja ?? null,
-    groom: histories.groom,
-    bride: histories.bride,
-    together: histories.together,
-  };
+    const historySection = {
+      headingJa: null,
+      titleJa: null,
+      groom: histories.filter((x) => x.role === "groom"),
+      bride: histories.filter((x) => x.role === "bride"),
+      together: histories.filter((x) => x.role === "together"),
+    };
 
-  // ④ 一問一答
-  const { data: qasRaw, error: qasError } = await supabase
-    .from("supporter_lp_questions")
-    .select("*")
-    .eq("couple_profile_id", coupleProfileId)
-    .order("sort_order", { ascending: true });
+    const qaItems: QaItem[] = (qaRes.data ?? []).map((q: any) => ({
+      id: q.id,
+      question: q.question ?? "",
+      groomAnswer: q.groom_answer ?? null,
+      brideAnswer: q.bride_answer ?? null,
+      sortOrder: typeof q.sort_order === "number" ? q.sort_order : 0,
+    }));
 
-  if (qasError) {
-    console.error("[getSupporterLPPageData] qasError:", qasError);
+    const qaSection = {
+      headingJa: null,
+      titleJa: null,
+      groomLabel: null,
+      brideLabel: null,
+      groomIconUrl: null,
+      brideIconUrl: null,
+      items: qaItems,
+    };
+
+    const persons = (personProfiles ?? []) as any[];
+    const groomProfile: PersonProfile | null = persons.length
+      ? (persons.find((p) => p.role === "groom") as any)
+      : null;
+    const brideProfile: PersonProfile | null = persons.length
+      ? (persons.find((p) => p.role === "bride") as any)
+      : null;
+
+    const pageData: SupporterLPPageData = {
+      // slug は couple_profiles.slug が正
+      slug: (couple.slug as string) ?? slug,
+      hero,
+      greeting,
+      history: historySection,
+      qa: qaSection,
+      groomProfile,
+      brideProfile,
+    };
+
+    return pageData;
+  } catch (e) {
+    console.error("[getSupporterLPPageData] unexpected error:", e);
     return null;
   }
-
-  const qaItems: QaItem[] = (qasRaw ?? []).slice(0, 7).map((q) => ({
-    id: q.id,
-    question: q.question,
-    groomAnswer: q.groom_answer,
-    brideAnswer: q.bride_answer,
-    sortOrder: q.sort_order,
-  }));
-
-  const qa: QaSectionData = {
-    headingJa: row.qa_heading_ja ?? null,
-    titleJa: row.qa_title_ja ?? null,
-    groomLabel: row.qa_groom_label ?? null,
-    brideLabel: row.qa_bride_label ?? null,
-    groomIconUrl: row.qa_groom_icon_url ?? null,
-    brideIconUrl: row.qa_bride_icon_url ?? null,
-    items: qaItems,
-  };
-
-  const result: SupporterLPPageData = {
-    slug: row.slug,
-    hero,
-    greeting,
-    history,
-    qa,
-    groomProfile,
-    brideProfile,
-  };
-
-  return result;
 }

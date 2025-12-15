@@ -1,5 +1,5 @@
-// app/projects/[slug]/_components/ProfileSection.tsx
-import type { PersonProfile } from "../types";
+// components/supporter-lp/ProfileSection.tsx
+import type { PersonProfile } from '@/app/projects/[slug]/types';
 
 type Props = {
   groom: PersonProfile | null;

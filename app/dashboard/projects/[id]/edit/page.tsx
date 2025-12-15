@@ -1,8 +1,7 @@
-// app/dashboard/projects/[id]/edit/page.tsx
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 type GiftList = {
@@ -27,9 +26,11 @@ type GiftItem = {
   id: string;
   name: string | null;
   target_amount: number | null;
+  sort_order?: number | null; // ★追加（並び順のため）
 };
 
 export default function ProjectEditPage() {
+  const router = useRouter();
   const params = useParams();
   const giftListId = params.id as string;
 
@@ -47,68 +48,97 @@ export default function ProjectEditPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemAmount, setNewItemAmount] = useState<number | "">("");
 
-  useEffect(() => {
-    const load = async () => {
-      if (!giftListId) return;
-      setLoading(true);
-      setErrorMsg(null);
+  // ★ gift_items を必ずDBから再取得する（入り直しでも同じ状態になる）
+  const reloadItems = async (listId: string) => {
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("gift_items")
+      .select("id, name, target_amount, sort_order")
+      .eq("gift_list_id", listId)
+      .order("sort_order", { ascending: true });
 
-      // 1) gift_lists（支援ページ本体）
-      const { data: listData, error: listError } = await supabase
+    if (itemsError) {
+      console.error(itemsError);
+      setErrorMsg("ほしいものリストの取得に失敗しました。");
+      return;
+    }
+
+    setGiftItems((itemsData ?? []) as GiftItem[]);
+  };
+
+  useEffect(() => {
+  const load = async () => {
+    if (!giftListId) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    // 1) gift_lists を「id優先」で探す。無ければ couple_id で探す
+    let giftListRow: GiftList | null = null;
+
+    // (a) id = [id]
+    const byId = await supabase
+      .from("gift_lists")
+      .select("id, couple_id, title, description, greeting_message, template_key")
+      .eq("id", giftListId)
+      .maybeSingle();
+
+    if (byId.error) {
+      console.error("[load] gift_lists by id error:", byId.error);
+    }
+
+    if (byId.data) {
+      giftListRow = byId.data as GiftList;
+    } else {
+      // (b) couple_id = [id]
+      const byCouple = await supabase
         .from("gift_lists")
         .select("id, couple_id, title, description, greeting_message, template_key")
-        .eq("id", giftListId)
+        .eq("couple_id", giftListId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (listError || !listData) {
-        console.error(listError);
-        setErrorMsg("ご祝儀ページが見つかりません。");
-        setLoading(false);
-        return;
+      if (byCouple.error) {
+        console.error("[load] gift_lists by couple_id error:", byCouple.error);
       }
 
-      const giftListRow = listData as GiftList;
-      setGiftList(giftListRow);
-
-      // 2) couple_profiles（カップル基本情報）
-      const { data: coupleData, error: coupleError } = await supabase
-        .from("couple_profiles")
-        .select(
-          "id, partner_name, partner_email, wedding_status, wedding_date, message_to_guests"
-        )
-        .eq("id", giftListRow.couple_id)
-        .maybeSingle();
-
-      if (coupleError || !coupleData) {
-        console.error(coupleError);
-        setErrorMsg("カップルプロフィールが見つかりません。");
-        setLoading(false);
-        return;
+      if (byCouple.data) {
+        giftListRow = byCouple.data as GiftList;
       }
+    }
 
-      setCouple(coupleData as CoupleProfile);
-
-      // 3) gift_items（欲しいものリスト）
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("gift_items")
-        .select("id, name, target_amount")
-        .eq("gift_list_id", giftListRow.id)
-        .order("sort_order", { ascending: true });
-
-      if (itemsError) {
-        console.error(itemsError);
-        setErrorMsg("ほしいものリストの取得に失敗しました。");
-        setLoading(false);
-        return;
-      }
-
-      setGiftItems((itemsData ?? []) as GiftItem[]);
-
+    if (!giftListRow) {
+      setErrorMsg("ご祝儀ページ（gift_lists）が見つかりません。");
       setLoading(false);
-    };
+      return;
+    }
 
-    load();
-  }, [giftListId]);
+    setGiftList(giftListRow);
+
+    // 2) couple_profiles（gift_lists.couple_id から取得）
+    const { data: coupleData, error: coupleError } = await supabase
+      .from("couple_profiles")
+      .select("id, partner_name, partner_email, wedding_status, wedding_date, message_to_guests")
+      .eq("id", giftListRow.couple_id)
+      .maybeSingle();
+
+    if (coupleError || !coupleData) {
+      console.error("[load] couple_profiles error:", coupleError);
+      setErrorMsg("カップルプロフィールが見つかりません。");
+      setLoading(false);
+      return;
+    }
+
+    setCouple(coupleData as CoupleProfile);
+
+    // 3) gift_items（gift_list_id で取得）
+    await reloadItems(giftListRow.id);
+
+    setLoading(false);
+  };
+
+  load();
+}, [giftListId]);
+
 
   if (loading) {
     return (
@@ -125,6 +155,15 @@ export default function ProjectEditPage() {
           <p className="text-sm text-red-600 whitespace-pre-line">
             {errorMsg ?? "データの取得に失敗しました。"}
           </p>
+
+          {/* ★ダッシュボードへ戻る */}
+          <button
+            className="mt-4 w-full px-4 py-2 border rounded-full text-xs bg-white"
+            onClick={() => router.push("/dashboard")}
+            type="button"
+          >
+            ダッシュボードへ戻る
+          </button>
         </div>
       </main>
     );
@@ -142,6 +181,7 @@ export default function ProjectEditPage() {
         description: giftList.description,
         greeting_message: giftList.greeting_message,
         template_key: giftList.template_key ?? "template1",
+        updated_at: new Date().toISOString(), // ★最新化
       })
       .eq("id", giftList.id);
 
@@ -188,25 +228,33 @@ export default function ProjectEditPage() {
 
     setAddingItem(true);
 
-    const { data, error } = await supabase
-      .from("gift_items")
-      .insert({
-        gift_list_id: giftList.id,
-        name: newItemName,
-        target_amount: newItemAmount,
-      })
-      .select("id, name, target_amount")
-      .single();
+    // ★sort_order を確実に付ける（これが無いと並び＆取得が不安定になりやすい）
+    const lastOrder = Math.max(
+      0,
+      ...giftItems.map((x) => (typeof x.sort_order === "number" ? x.sort_order : 0))
+    );
+    const nextOrder = lastOrder + 1;
+
+    const { error } = await supabase.from("gift_items").insert({
+      gift_list_id: giftList.id,
+      name: newItemName,
+      target_amount: newItemAmount,
+      sort_order: nextOrder,
+      collected_amount: 0, // ※DBで必須なら必要。不要なら削除OK
+      updated_at: new Date().toISOString(),
+    });
 
     setAddingItem(false);
 
-    if (error || !data) {
+    if (error) {
       console.error(error);
       alert("アイテムの追加に失敗しました。");
       return;
     }
 
-    setGiftItems((prev) => [...prev, data as GiftItem]);
+    // ★insert後は必ず再取得（これで入り直しても消えない＝DBが真実になる）
+    await reloadItems(giftList.id);
+
     setNewItemName("");
     setNewItemAmount("");
   };
@@ -215,10 +263,7 @@ export default function ProjectEditPage() {
   const handleDeleteItem = async (id: string) => {
     if (!confirm("このアイテムを削除しますか？")) return;
 
-    const { error } = await supabase
-      .from("gift_items")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("gift_items").delete().eq("id", id);
 
     if (error) {
       console.error(error);
@@ -226,16 +271,30 @@ export default function ProjectEditPage() {
       return;
     }
 
-    setGiftItems((prev) => prev.filter((item) => item.id !== id));
+    // ★削除後も再取得
+    await reloadItems(giftList.id);
   };
 
   return (
     <main className="min-h-screen bg-[#f5f2ec]">
       <div className="max-w-5xl mx-auto py-8 px-4 space-y-8">
-        <h1 className="text-2xl font-bold mb-2">ご祝儀ページ編集</h1>
-        <p className="text-xs text-slate-600">
-          タイトル・挨拶文・お二人の情報・ほしいものリストを編集できます。
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">ご祝儀ページ編集</h1>
+            <p className="text-xs text-slate-600">
+              タイトル・挨拶文・お二人の情報・ほしいものリストを編集できます。
+            </p>
+          </div>
+
+          {/* ★ダッシュボードへ戻る */}
+          <button
+            className="px-4 py-2 border rounded-full text-xs bg-white"
+            onClick={() => router.push("/dashboard")}
+            type="button"
+          >
+            ダッシュボードへ戻る
+          </button>
+        </div>
 
         {/* 基本情報（gift_lists） */}
         <section className="bg-white rounded-2xl shadow-md p-6 space-y-4">
@@ -248,9 +307,7 @@ export default function ProjectEditPage() {
                 className="w-full border rounded-md px-3 py-2 text-sm"
                 value={giftList.title ?? ""}
                 onChange={(e) =>
-                  setGiftList((prev) =>
-                    prev ? { ...prev, title: e.target.value } : prev
-                  )
+                  setGiftList((prev) => (prev ? { ...prev, title: e.target.value } : prev))
                 }
               />
             </div>
@@ -262,9 +319,7 @@ export default function ProjectEditPage() {
                 rows={3}
                 value={giftList.description ?? ""}
                 onChange={(e) =>
-                  setGiftList((prev) =>
-                    prev ? { ...prev, description: e.target.value } : prev
-                  )
+                  setGiftList((prev) => (prev ? { ...prev, description: e.target.value } : prev))
                 }
               />
             </div>
@@ -277,9 +332,7 @@ export default function ProjectEditPage() {
                 value={giftList.greeting_message ?? ""}
                 onChange={(e) =>
                   setGiftList((prev) =>
-                    prev
-                      ? { ...prev, greeting_message: e.target.value }
-                      : prev
+                    prev ? { ...prev, greeting_message: e.target.value } : prev
                   )
                 }
               />
@@ -291,14 +344,11 @@ export default function ProjectEditPage() {
                 className="border rounded-md px-3 py-2 text-sm"
                 value={giftList.template_key ?? "template1"}
                 onChange={(e) =>
-                  setGiftList((prev) =>
-                    prev ? { ...prev, template_key: e.target.value } : prev
-                  )
+                  setGiftList((prev) => (prev ? { ...prev, template_key: e.target.value } : prev))
                 }
               >
                 <option value="template1">シンプル</option>
                 <option value="template2">華やか</option>
-                {/* 必要に応じて追加 */}
               </select>
             </div>
 
@@ -323,9 +373,7 @@ export default function ProjectEditPage() {
                 className="w-full border rounded-md px-3 py-2 text-sm"
                 value={couple.partner_name ?? ""}
                 onChange={(e) =>
-                  setCouple((prev) =>
-                    prev ? { ...prev, partner_name: e.target.value } : prev
-                  )
+                  setCouple((prev) => (prev ? { ...prev, partner_name: e.target.value } : prev))
                 }
               />
             </div>
@@ -338,9 +386,7 @@ export default function ProjectEditPage() {
                   placeholder="入籍のみ / フォトウェディング など"
                   value={couple.wedding_status ?? ""}
                   onChange={(e) =>
-                    setCouple((prev) =>
-                      prev ? { ...prev, wedding_status: e.target.value } : prev
-                    )
+                    setCouple((prev) => (prev ? { ...prev, wedding_status: e.target.value } : prev))
                   }
                 />
               </div>
@@ -351,27 +397,21 @@ export default function ProjectEditPage() {
                   className="w-full border rounded-md px-3 py-2 text-sm"
                   value={couple.wedding_date ?? ""}
                   onChange={(e) =>
-                    setCouple((prev) =>
-                      prev ? { ...prev, wedding_date: e.target.value } : prev
-                    )
+                    setCouple((prev) => (prev ? { ...prev, wedding_date: e.target.value } : prev))
                   }
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs mb-1">
-                補足メッセージ（任意）
-              </label>
+              <label className="block text-xs mb-1">補足メッセージ（任意）</label>
               <textarea
                 className="w-full border rounded-md px-3 py-2 text-sm"
                 rows={3}
                 value={couple.message_to_guests ?? ""}
                 onChange={(e) =>
                   setCouple((prev) =>
-                    prev
-                      ? { ...prev, message_to_guests: e.target.value }
-                      : prev
+                    prev ? { ...prev, message_to_guests: e.target.value } : prev
                   )
                 }
               />
@@ -391,10 +431,7 @@ export default function ProjectEditPage() {
         <section className="bg-white rounded-2xl shadow-md p-6 space-y-4">
           <h2 className="text-lg font-semibold mb-2">ほしいものリスト</h2>
 
-          <form
-            onSubmit={handleAddItem}
-            className="flex flex-wrap gap-3 items-end text-sm"
-          >
+          <form onSubmit={handleAddItem} className="flex flex-wrap gap-3 items-end text-sm">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs mb-1">アイテム名</label>
               <input
@@ -410,9 +447,7 @@ export default function ProjectEditPage() {
                 className="w-32 border rounded-md px-3 py-2 text-sm"
                 value={newItemAmount}
                 onChange={(e) =>
-                  setNewItemAmount(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
+                  setNewItemAmount(e.target.value === "" ? "" : Number(e.target.value))
                 }
               />
             </div>
@@ -427,9 +462,7 @@ export default function ProjectEditPage() {
 
           <ul className="mt-4 space-y-2 text-sm">
             {giftItems.length === 0 && (
-              <p className="text-xs text-slate-500">
-                まだアイテムが登録されていません。
-              </p>
+              <p className="text-xs text-slate-500">まだアイテムが登録されていません。</p>
             )}
 
             {giftItems.map((item) => (
@@ -439,13 +472,12 @@ export default function ProjectEditPage() {
               >
                 <div>
                   <p className="font-medium">{item.name}</p>
-                  <p className="text-xs text-slate-500">
-                    目標：{item.target_amount ?? 0} 円
-                  </p>
+                  <p className="text-xs text-slate-500">目標：{item.target_amount ?? 0} 円</p>
                 </div>
                 <button
                   className="text-[11px] border border-slate-300 rounded-full px-3 py-1"
                   onClick={() => handleDeleteItem(item.id)}
+                  type="button"
                 >
                   削除
                 </button>

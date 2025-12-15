@@ -524,7 +524,7 @@ function SectionRow({ label, done, onClick }: SectionRowProps) {
         className="text-[11px] bg-white border border-slate-300 rounded-full px-3 py-1"
         onClick={onClick}
       >
-        作成する
+        編集する
       </button>
     </div>
   );
