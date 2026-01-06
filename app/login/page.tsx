@@ -26,8 +26,8 @@ export default function LoginPage() {
       console.log('signIn result', { data, error });
 
       if (error) {
-        console.error('login error', error);
-        setErrorMsg(error.message);
+        console.log('login failed:', error.message); 
+        setErrorMsg('ログイン情報が間違っています。');
         return;
       }
 
@@ -74,7 +74,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6 space-y-4">
         <h1 className="text-xl font-bold text-center">
-          WeddingFund ログイン
+          MARIF ログイン
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
